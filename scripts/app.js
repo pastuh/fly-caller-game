@@ -1,6 +1,7 @@
 // For the future
 //let extraCanvas;
 
+let lightIsOn = false;
 let minObjSize = 2;
 let maxObjSize = 25;
 
@@ -20,22 +21,63 @@ class Lamp {
         this.allowToSpawn = true;
     }
 
-    showLine() {
-        strokeWeight(this.weight);
-        line(this.cord.x, 0, this.cord.x, (this.cord.y - this.radius) - this.weight);
+    showLine(R, G, B, A = 255) {
+        //strokeWeight(this.weight);
+        // Lamp stem
+        stroke(R, G, B);
+        line(this.cord.x, this.cord.y - this.radius - this.weight, this.cord.x, 0);
+        //ellipse(this.cord.x, this.cord.y, this.radius * 3.5);
+
+        // push();
+        // strokeWeight(10);
+        // line(this.cord.x, this.cord.y + this.radius + this.weight - 1, this.cord.x, this.cord.y + this.radius * 2);
+        // pop();
+        //
+        // // Stem end
+        // push();
+        // strokeWeight(6);
+        // line(this.cord.x - 6, this.cord.y + (this.radius * 2) - 6, this.cord.x + 6, this.cord.y + (this.radius * 2) + 6);
+        // pop();
+        //
+        // // Middle
+        // push();
+        // strokeWeight(10);
+        // line(this.cord.x, this.cord.y + this.radius * 2 + this.weight, width / 2 - this.radius * 2, height / 2 + this.radius * 4);
+        // pop();
+        //
+        // push();
+        // strokeWeight(10);
+        // line(width / 2 - this.radius * 2, height / 2 + this.radius * 4, 0 + this.radius * 2, height - 24);
+        // pop();
+        //
+        // push();
+        // strokeWeight(20);
+        // line(0 + this.radius * 2, height - 20, 0 + this.radius * 4, height - 20);
+        // pop();
+
     }
 
-    drawSelectedLamp() {
+    showObj() {
         strokeWeight(this.weight);
         ellipseMode(CENTER);
         ellipse(this.cord.x, this.cord.y, this.radius * 2);
+    }
+
+    hover(x, y) {
+        let d = dist(x, y, this.cord.x, this.cord.y);
+        if (d <= this.radius) {
+            lightIsOn = true;
+            return true;
+        } else {
+            lightIsOn = false;
+        }
     }
 
     animateLamp(realTimer) {
         noFill();
         stroke(255, 250, 0, 50);
 
-        ellipse(this.cord.x, this.cord.y, (this.radius * 2) - ((10 * realTimer) + 10));
+        ellipse(this.cord.x, this.cord.y, (this.radius * 2) - ((10 * realTimer) - 10));
 
         if (realTimer == 0) {
             this.allowToSpawn = true;
@@ -55,6 +97,9 @@ class Lamp {
         ellipseMode(CENTER);
         //Default bounce
         ellipse(this.cord.x, height - 8, lampTableDistance, 12);
+
+
+        noStroke();
         //More bounce based on distance
         if (lampTableDistance < height / 2) {
             fill(255, 255, 0, 100);
@@ -87,6 +132,7 @@ class Fly {
 
     adjustSpeed(lampActive) {
         if (this.alive) {
+            // Adjust speed based on Lamp
             if (lampActive) {
                 this.cord.x += random(-this.dimension, this.dimension);
                 this.cord.y += random(-this.dimension, this.dimension);
@@ -95,15 +141,16 @@ class Fly {
                 this.cord.y += random(-this.dimension / 2, this.dimension / 2);
             }
         } else {
-            // If dead, set fixed position (on table)
+            // Show drop effect
             this.cord.y = this.cord.y + this.dimension;
+            // If dead, set fixed position
             if (this.cord.y >= height) {
-                this.cord.y = height - (this.dimension / 2);
+                this.cord.y = height - this.dimension;
             }
         }
     }
 
-    drawSelected() {
+    showObj() {
         noStroke();
         rectMode(CENTER);
         rect(this.cord.x, this.cord.y, this.dimension, this.dimension, this.wingsSize);
@@ -145,9 +192,9 @@ class Fly {
             }
         } else {
             if (this.alive) {
-                this.color.R = this.dimension * 8;
+                this.color.R = 100 - this.dimension * 2;
                 this.color.G = 0;
-                this.color.B = 205 + (this.dimension * 2);
+                this.color.B = 205 - (this.dimension * 2);
             } else {
                 this.color.R = (this.dimension * 2);
                 this.color.G = 15;
@@ -160,6 +207,26 @@ class Fly {
 
 };
 
+let tableList = [];
+
+class Table {
+    constructor(posX, posY, width, height, weight) {
+        this.cord = {
+            x : posX,
+            y : posY
+        };
+        this.width = width;
+        this.height = height;
+        this.weight = weight;
+    }
+
+    showObj(R, G, B) {
+        stroke(R, G, B);
+        strokeWeight(this.weight);
+        line(this.cord.x, this.cord.y, this.width, this.height);
+    }
+}
+
 function setup() {
     createCanvas(400, 400);
 
@@ -168,8 +235,9 @@ function setup() {
     //extraCanvas.clear();
 
     // Create starting Objects
-    lampList.push(new Lamp(setLampPosition(width, 50), setLampPosition(height, 50), 50, 6));
+    lampList.push(new Lamp(setLampPosition(width, 50), setLampPosition(height, 50), sizeRandomizer(25, 40), 6));
     flyList.push(new Fly(200, 200, 20, sizeRandomizer(0, 6)));
+    tableList.push(new Table(0, height, width, height, 25));
 
     background(0);
 }
@@ -177,39 +245,20 @@ function setup() {
 function draw() {
     background(0);
 
-    // Table
-    stroke(40, 30, 80);
-    if (mouseIsPressed) {
-        stroke(105, 85, 30);
-    }
-    strokeWeight(32);
-    line(0, height, width, height);
-
     // Counter style
     noStroke();
     fill(255);
     textSize(13);
     textAlign(LEFT, TOP);
     text(flyList.filter((obj) => obj.alive).length, 10, height - 30);
-
     // Text format
     textSize(40);
     textAlign(CENTER, CENTER);
 
+    // showObj Table
+    tableList[0].showObj(40, 30, 80);
 
     for (const [i, lamp] of lampList.entries()) {
-
-        // Line
-        stroke(40, 30, 80);
-        if (mouseIsPressed) {
-            stroke(135, 80, 15);
-        }
-        lamp.showLine();
-
-        // Lamp light bounce
-        if (mouseIsPressed) {
-            lamp.showLightBounce();
-        }
 
         // Global timer activation
         timer(lamp);
@@ -218,35 +267,46 @@ function draw() {
             lamp.startTime = millis();
         }
 
-        // Count till Lamp time
-        if (lamp.time <= lamp.endTime) {
-            // Show timer while mouse is Pressed
-            if (mouseIsPressed) {
-                let realTimer = timer(lamp);
-                // Show timer numbers
-                if (realTimer !== 0) {
-                    //text(realTimer, width / 2, height / 2);
-                }
-
-                // Show animatioon while Lamp is active
-                lamp.animateLamp(realTimer);
-
-            }
+        // showObj Lamp
+        if (lamp.hover(mouseX, mouseY)) {
+            stroke(70, 70, 70, 255);
+            fill(255, 150);
         } else {
-            // By default reset global timer
-            text('', width / 2, height / 2);
-            lamp.startTime = millis();
+            stroke(50, 50, 50, 255);
+            fill(255, 150);
         }
+        lamp.showObj();
+        lamp.showLine(50, 50, 50, 20);
 
-        // Default LIGHT (lamp)
         if (mouseIsPressed) {
-            fill(255, 20);
-            stroke(255, 255, 0);
-        } else {
-            fill(255, 20);
-            stroke(150, 150);
+            if (lamp.hover(mouseX, mouseY)) {
+                lamp.showLightBounce();
+
+                stroke(255, 255, 255, 255);
+                lamp.showObj();
+                lamp.showLine(135, 80, 15, 20);
+                tableList[0].showObj(105, 85, 30);
+
+                // Animate lamp till endTime
+                if (lamp.time <= lamp.endTime) {
+                    let realTimer = timer(lamp);
+                    //showObj timer numbers (for test)
+                    // if (realTimer !== 0) {
+                    //     text(realTimer, width / 2, height / 2);
+                    // }
+                    lamp.animateLamp(realTimer);
+                } else {
+                    // Hide timer numbers (for test)
+                    //text('', width / 2, height / 2);
+                    // Reset Timer if reached endTime
+                    lamp.startTime = millis();
+                }
+            } else {
+                // Reset Timer if clicked not on lamp
+                lamp.startTime = millis();
+            }
         }
-        lamp.drawSelectedLamp();
+
     }
 
     //New canvas (to draw on top)
@@ -256,20 +316,23 @@ function draw() {
 
         if (mouseIsPressed) {
             // Set Fly speed based on lamp status
-            fly.adjustSpeed(true);
+            fly.adjustSpeed(lightIsOn);
             // Set Fly color based on lamp status
-            fly.changeColor(true);
-            // Set Fly status based on Lamp distance..
-            for (const [i, lamp] of lampList.entries()) {
-                fly.checkStatus(lamp, lamp.radius);
+            fly.changeColor(lightIsOn);
+            // Set Fly status if flies on Lamp..
+            if (lightIsOn) {
+                for (const [i, lamp] of lampList.entries()) {
+                    fly.checkStatus(lamp, lamp.radius);
+                }
             }
+
         } else {
             fly.adjustSpeed(false);
             fly.changeColor(false);
         }
 
-        // Show how Fly flies..
-        fly.drawSelected();
+        // showObj how Fly flies..
+        fly.showObj();
         // Adjust Fly position if hits wall
         fly.setBoundaries();
 
@@ -298,7 +361,6 @@ function setSpawnPosition(position, objSize) {
         if (point < position - objSize && point > objSize) {
             point = random(0, position);
         } else {
-            console.log(`${point} : ${position - objSize}`);
             return point;
             break;
         }
@@ -306,5 +368,5 @@ function setSpawnPosition(position, objSize) {
 }
 
 function objectSpawner() {
-    flyList.push(new Fly(setSpawnPosition(width, 25), setSpawnPosition(height, 25), sizeRandomizer(2, 25), sizeRandomizer(0, 10)));
+    flyList.push(new Fly(setSpawnPosition(width, 25), setSpawnPosition(height, 25), sizeRandomizer(5, 25), sizeRandomizer(0, 15)));
 }
